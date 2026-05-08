@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>豇豆生长记录</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Microsoft YaHei', sans-serif;
+    background: #f0f7f0;
+    color: #2d3a2d;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  /* 顶栏 */
+  .header {
+    background: linear-gradient(135deg, #4a8c5c, #2d6a3e);
+    color: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(45,106,62,.25);
+  }
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .crop-name-input {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid rgba(255,255,255,.4);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    padding: 4px 0;
+    outline: none;
+    width: 160px;
+    transition: border-color .2s;
+  }
+  .crop-name-input:focus { border-bottom-color: #fff; }
+  .crop-name-input::placeholder { color: rgba(255,255,255,.5); }
+
+  .status-badge {
+    background: rgba(255,255,255,.2);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+  }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .stat-item { display: flex; flex-direction: column; }
+  .stat-label { font-size: 12px; opacity: .75; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-sub { font-size: 14px; opacity: .85; margin-top: 2px; }
+
+  .planting-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .planting-row label { font-size: 14px; opacity: .9; }
+  .planting-row input[type=date] {
+    background: rgba(255,255,255,.2);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 14px;
+    outline: none;
+    color-scheme: dark;
+  }
+  .planting-row input[type=date]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+  }
+
+  /* 阶段时间线 */
+  .timeline { position: relative; padding-left: 40px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    background: #c8dcc8;
+    border-radius: 2px;
+  }
+
+  .stage-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    position: relative;
+    transition: box-shadow .2s;
+  }
+  .stage-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+
+  .stage-dot {
+    position: absolute;
+    left: -30px;
+    top: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #c8dcc8;
+    border: 3px solid #f0f7f0;
+    z-index: 1;
+  }
+  .stage-dot.active { background: #4a8c5c; box-shadow: 0 0 0 3px rgba(74,140,92,.3); }
+  .stage-dot.done { background: #2d6a3e; }
+
+  .stage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+  }
+  .stage-name {
+    font-size: 17px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stage-icon { font-size: 20px; }
+  .stage-range { font-size: 13px; color: #6a8a6a; margin-top: 2px; }
+  .stage-status-label {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  .stage-status-label.pending { background: #f0f0f0; color: #999; }
+  .stage-status-label.active { background: #e6f3e6; color: #2d6a3e; font-weight: 600; }
+  .stage-status-label.done { background: #2d6a3e; color: #fff; }
+
+  /* 进度条 */
+  .progress-bar {
+    margin-top: 10px;
+    height: 6px;
+    background: #e8f0e8;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6abf7a, #4a8c5c);
+    border-radius: 3px;
+    transition: width .5s ease;
+  }
+
+  /* 记录区 */
+  .stage-body { margin-top: 12px; }
+  .toggle-btn {
+    background: none;
+    border: 1px dashed #b8d0b8;
+    color: #4a8c5c;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .toggle-btn:hover { background: #f0f7f0; border-style: solid; }
+
+  .record-form {
+    display: none;
+    margin-top: 12px;
+    padding: 12px;
+    background: #f8fbf8;
+    border-radius: 8px;
+  }
+  .record-form.open { display: block; }
+
+  .record-form textarea {
+    width: 100%;
+    border: 1px solid #d0e0d0;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 60px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .record-form textarea:focus { border-color: #4a8c5c; }
+
+  .photo-upload {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .photo-upload label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px dashed #b8d0b8;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4a8c5c;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .photo-upload label:hover { background: #f0f7f0; border-style: solid; }
+  .photo-upload input[type=file] { display: none; }
+
+  .photo-previews {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .photo-previews img {
+    width: 70px;
+    height: 70px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #d0e0d0;
+  }
+  .photo-previews .remove-photo {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 20px;
+    text-align: center;
+  }
+  .photo-wrapper { position: relative; display: inline-block; }
+
+  .submit-record {
+    margin-top: 10px;
+    background: #4a8c5c;
+    color: #fff;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .submit-record:hover { background: #2d6a3e; }
+
+  /* 已保存记录 */
+  .saved-records { margin-top: 10px; }
+  .saved-record {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eef5ee;
+    font-size: 14px;
+  }
+  .saved-record:last-child { border-bottom: none; }
+  .saved-record .rec-date {
+    color: #6a8a6a;
+    white-space: nowrap;
+    font-size: 12px;
+    min-width: 80px;
+  }
+  .saved-record .rec-note { flex: 1; line-height: 1.5; }
+  .saved-record .rec-photos { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .saved-record .rec-photos img {
+    width: 50px; height: 50px; object-fit: cover; border-radius: 6px;
+    cursor: pointer; transition: transform .2s;
+  }
+  .saved-record .rec-photos img:hover { transform: scale(2.5); z-index: 10; position: relative; }
+  .empty-records { color: #aaa; font-size: 13px; padding: 8px 0; }
+
+  /* 底部操作栏 */
+  .bottom-bar {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 32px;
+    padding: 16px 0;
+    flex-wrap: wrap;
+  }
+  .bottom-bar button {
+    background: #fff;
+    border: 1px solid #d0e0d0;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .bottom-bar button:hover { background: #f0f7f0; border-color: #4a8c5c; }
+  .bottom-bar .btn-danger { color: #e74c3c; }
+  .bottom-bar .btn-danger:hover { background: #fde8e8; border-color: #e74c3c; }
+  .bottom-bar .btn-primary {
+    background: #4a8c5c;
+    color: #fff;
+    border-color: #4a8c5c;
+  }
+  .bottom-bar .btn-primary:hover { background: #2d6a3e; }
+
+  /* 图片预览弹窗 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    .header { padding: 16px; }
+    .header-top { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .header-stats { gap: 16px; }
+    .timeline { padding-left: 32px; }
+    .stage-dot { left: -24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 顶栏 -->
+  <div class="header">
+    <div class="header-top">
+      <input class="crop-name-input" id="cropName" value="豇豆" placeholder="作物名称" spellcheck="false">
+      <span class="status-badge" id="currentStageBadge">🌱 发芽期</span>
+    </div>
+    <div class="header-stats">
+      <div class="stat-item">
+        <span class="stat-label">播种第</span>
+        <span class="stat-value" id="dayCount">0</span>
+        <span class="stat-sub">天</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">预计收获</span>
+        <span class="stat-value" id="harvestCountdown">-</span>
+        <span class="stat-sub" id="harvestStatus">天</span>
+      </div>
+    </div>
+    <div class="planting-row">
+      <label for="plantingDate">播种日期</label>
+      <input type="date" id="plantingDate">
+    </div>
+  </div>
+
+  <!-- 时间线 -->
+  <div class="timeline" id="timeline"></div>
+
+  <!-- 底部操作栏 -->
+  <div class="bottom-bar">
+    <button class="btn-primary" onclick="exportData()">📤 导出数据</button>
+    <button class="btn-danger" onclick="resetAll()">🗑️ 重置所有数据</button>
+  </div>
+</div>
+
+<!-- 图片预览弹窗 -->
+<div class="modal-overlay" id="imageModal" onclick="this.classList.remove('open')">
+  <img id="modalImage" src="" alt="预览">
+</div>
+
+<script>
+// ===== 阶段定义 =====
+const STAGES = [
+  { id: 'sowing',     name: '播种期', icon: '🌱', startDay: 0,  endDay: 0,   desc: '播种下土' },
+  { id: 'germination',name: '发芽期', icon: '🌿', startDay: 1,  endDay: 7,   desc: '种子破土出芽' },
+  { id: 'seedling',   name: '幼苗期', icon: '🍃', startDay: 7,  endDay: 15,  desc: '长出真叶，苗高10-15cm' },
+  { id: 'vine',       name: '抽蔓期', icon: '🌱', startDay: 15, endDay: 25,  desc: '藤蔓伸长，需搭架引蔓' },
+  { id: 'flower',     name: '开花期', icon: '🌸', startDay: 25, endDay: 35,  desc: '开花' },
+  { id: 'pod',        name: '结荚期', icon: '🌶️', startDay: 35, endDay: 45,  desc: '豆荚形成并伸长' },
+  { id: 'mature',     name: '成熟期', icon: '🥬', startDay: 45, endDay: 60,  desc: '豆荚饱满，可收获' },
+];
+
+const DB_NAME = 'cowpea-tracker';
+const DB_VER = 1;
+const STORE_NAME = 'photos';
+
+// ===== IndexedDB 图片存储 =====
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function savePhotoToDB(stageId, photoData) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const id = `${stageId}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+    store.put({ id, stageId, data: photoData });
+    tx.oncomplete = () => resolve(id);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function deletePhotoFromDB(photoId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(photoId);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getAllPhotosForStage(stageId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const all = req.result.filter(p => p.stageId === stageId);
+      resolve(all);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ===== 本地存储（文字数据用 localStorage） =====
+const STORAGE_KEY = 'cowpea_data';
+
+function getDefaultData() {
+  const today = new Date().toISOString().slice(0,10);
+  const stages = {};
+  STAGES.forEach(s => { stages[s.id] = { records: [] }; });
+  return { cropName: '豇豆', plantingDate: today, stages };
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // 确保所有阶段都存在
+      STAGES.forEach(s => {
+        if (!data.stages[s.id]) data.stages[s.id] = { records: [] };
+      });
+      return data;
+    }
+  } catch(e) { /* ignore */ }
+  return getDefaultData();
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ===== 核心逻辑 =====
+let appData = loadData();
+
+function getDaysSincePlanting() {
+  if (!appData.plantingDate) return 0;
+  const plant = new Date(appData.plantingDate);
+  const now = new Date();
+  const diff = Math.floor((now - plant) / (86400000));
+  return Math.max(0, diff);
+}
+
+function getCurrentStageId(days) {
+  for (let i = STAGES.length - 1; i >= 0; i--) {
+    if (days >= STAGES[i].startDay) return STAGES[i].id;
+  }
+  return STAGES[0].id;
+}
+
+function getStageStatus(stage, days) {
+  if (days > stage.endDay) return 'done';
+  if (days >= stage.startDay && days <= stage.endDay) return 'active';
+  return 'pending';
+}
+
+function getStageProgress(stage, days) {
+  if (days > stage.endDay) return 100;
+  if (days < stage.startDay) return 0;
+  const range = stage.endDay - stage.startDay || 1;
+  return Math.min(100, ((days - stage.startDay) / range) * 100);
+}
+
+// ===== 渲染 =====
+async function render() {
+  const days = getDaysSincePlanting();
+  const currentStageId = getCurrentStageId(days);
+  const data = appData;
+
+  // 顶栏
+  document.getElementById('cropName').value = data.cropName || '豇豆';
+  document.getElementById('plantingDate').value = data.plantingDate || '';
+  document.getElementById('dayCount').textContent = days;
+
+  // 当前阶段
+  const cs = STAGES.find(s => s.id === currentStageId);
+  document.getElementById('currentStageBadge').textContent = `${cs.icon} ${cs.name}`;
+
+  // 收获倒计时
+  const matureStage = STAGES[STAGES.length - 1];
+  const harvestDays = Math.max(0, matureStage.endDay - days);
+  if (days >= matureStage.startDay) {
+    document.getElementById('harvestCountdown').textContent = '已可收获';
+    document.getElementById('harvestStatus').textContent = '🎉';
+  } else {
+    document.getElementById('harvestCountdown').textContent = harvestDays;
+    document.getElementById('harvestStatus').textContent = `天后 (约${getHarvestDate()})`;
+  }
+
+  // 时间线
+  const timeline = document.getElementById('timeline');
+  let html = '';
+  for (const stage of STAGES) {
+    const status = getStageStatus(stage, days);
+    const progress = getStageProgress(stage, days);
+    const stageRecords = data.stages[stage.id]?.records || [];
+
+    // 加载图片
+    const photos = await getAllPhotosForStage(stage.id);
+
+    // 计算该阶段已记录的图片（用于已保存记录显示）
+    const savedRecordsHtml = renderSavedRecords(stageRecords, photos);
+
+    const statusLabel = status === 'done' ? '✅ 完成' : status === 'active' ? '● 进行中' : '○ 待开始';
+    const statusClass = status === 'done' ? 'done' : status === 'active' ? 'active' : 'pending';
+    const dotClass = status === 'done' ? 'done' : status === 'active' ? 'active' : '';
+
+    html += `
+      <div class="stage-card">
+        <div class="stage-dot ${dotClass}"></div>
+        <div class="stage-header" onclick="toggleBody('${stage.id}')">
+          <div>
+            <div class="stage-name"><span class="stage-icon">${stage.icon}</span>${stage.name}</div>
+            <div class="stage-range">第 ${stage.startDay} - ${stage.endDay} 天 · ${stage.desc}</div>
+          </div>
+          <span class="stage-status-label ${statusClass}">${statusLabel}</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${progress}%"></div>
+        </div>
+        <div class="stage-body" id="body_${stage.id}">
+          <button class="toggle-btn" onclick="event.stopPropagation();toggleForm('${stage.id}')">+ 添加记录</button>
+          <div class="record-form" id="form_${stage.id}">
+            <textarea id="note_${stage.id}" placeholder="记录观察内容…" rows="2"></textarea>
+            <div class="photo-upload">
+              <label>📷 添加照片
+                <input type="file" accept="image/*" multiple onchange="handleFileSelect('${stage.id}', event)">
+              </label>
+              <span style="font-size:12px;color:#999;" id="photoCount_${stage.id}">已选 0 张</span>
+            </div>
+            <div class="photo-previews" id="preview_${stage.id}"></div>
+            <button class="submit-record" onclick="submitRecord('${stage.id}')">保存记录</button>
+          </div>
+          <div class="saved-records" id="records_${stage.id}">
+            ${savedRecordsHtml}
+          </div>
+        </div>
+      </div>`;
+  }
+  timeline.innerHTML = html;
+}
+
+function renderSavedRecords(records, allPhotos) {
+  if (!records || records.length === 0) {
+    return '<div class="empty-records">暂无记录</div>';
+  }
+  let html = '';
+  for (const rec of records) {
+    const recPhotos = allPhotos.filter(p => rec.photoIds && rec.photoIds.includes(p.id));
+    let photosHtml = '';
+    for (const p of recPhotos) {
+      photosHtml += `<img src="${p.data}" onclick="event.stopPropagation();previewImage('${p.data}')">`;
+    }
+    html += `
+      <div class="saved-record">
+        <span class="rec-date">${rec.date}</span>
+        <div class="rec-note">
+          ${escapeHtml(rec.note || '(无备注)')}
+          ${photosHtml ? `<div class="rec-photos">${photosHtml}</div>` : ''}
+        </div>
+      </div>`;
+  }
+  return html;
+}
+
+// ===== 临时图片存储（提交前） =====
+let pendingPhotos = {};
+
+function handleFileSelect(stageId, event) {
+  const files = event.target.files;
+  if (!files.length) return;
+  if (!pendingPhotos[stageId]) pendingPhotos[stageId] = [];
+
+  const previews = document.getElementById('preview_' + stageId);
+
+  Array.from(files).forEach(file => {
+    if (file.size > 5 * 1024 * 1024) {
+      alert('图片过大，请选择 5MB 以内的图片');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = e.target.result;
+      pendingPhotos[stageId].push(data);
+      updatePhotoPreviews(stageId);
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function updatePhotoPreviews(stageId) {
+  const previews = document.getElementById('preview_' + stageId);
+  document.getElementById('photoCount_' + stageId).textContent = `已选 ${pendingPhotos[stageId]?.length || 0} 张`;
+  let html = '';
+  if (pendingPhotos[stageId]) {
+    pendingPhotos[stageId].forEach((data, idx) => {
+      html += `<div class="photo-wrapper">
+        <img src="${data}">
+        <button class="remove-photo" onclick="removePendingPhoto('${stageId}', ${idx})">✕</button>
+      </div>`;
+    });
+  }
+  previews.innerHTML = html;
+}
+
+function removePendingPhoto(stageId, idx) {
+  pendingPhotos[stageId].splice(idx, 1);
+  updatePhotoPreviews(stageId);
+}
+
+// ===== 提交记录 =====
+async function submitRecord(stageId) {
+  const note = document.getElementById('note_' + stageId).value.trim();
+  const photos = pendingPhotos[stageId] || [];
+
+  if (!note && photos.length === 0) {
+    alert('请填写备注或添加照片');
+    return;
+  }
+
+  // 保存图片到 IndexedDB
+  const photoIds = [];
+  for (const data of photos) {
+    const id = await savePhotoToDB(stageId, data);
+    photoIds.push(id);
+  }
+
+  // 保存记录到 localStorage
+  const record = {
+    date: new Date().toISOString().slice(0,10),
+    note,
+    photoIds
+  };
+  if (!appData.stages[stageId]) appData.stages[stageId] = { records: [] };
+  appData.stages[stageId].records.push(record);
+  saveData(appData);
+
+  // 清空表单
+  document.getElementById('note_' + stageId).value = '';
+  pendingPhotos[stageId] = [];
+  updatePhotoPreviews(stageId);
+  document.getElementById('form_' + stageId).classList.remove('open');
+
+  // 重新渲染
+  await render();
+}
+
+// ===== UI 辅助函数 =====
+function toggleForm(stageId) {
+  document.getElementById('form_' + stageId).classList.toggle('open');
+}
+
+function toggleBody(stageId) {
+  // 点击卡片标题展开/收起记录区
+  const form = document.getElementById('form_' + stageId);
+  const isOpen = form.classList.contains('open');
+  // 如果表单开着就关掉，否则展开
+  // 简单实现：滚动到对应卡片
+  document.getElementById('body_' + stageId).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function previewImage(data) {
+  document.getElementById('modalImage').src = data;
+  document.getElementById('imageModal').classList.add('open');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function getHarvestDate() {
+  if (!appData.plantingDate) return '';
+  const plant = new Date(appData.plantingDate);
+  const harvest = new Date(plant);
+  harvest.setDate(harvest.getDate() + 60);
+  return `${harvest.getMonth()+1}月${harvest.getDate()}日`;
+}
+
+// ===== 数据操作 =====
+function exportData() {
+  const data = {
+    exportDate: new Date().toISOString(),
+    daysSincePlanting: getDaysSincePlanting(),
+    currentStage: getCurrentStageId(getDaysSincePlanting()),
+    ...appData
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `豇豆生长记录_${appData.plantingDate || '未设置'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function resetAll() {
+  if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+  if (!confirm('再次确认：所有记录和照片将被永久删除！')) return;
+
+  // 清空 localStorage
+  localStorage.removeItem(STORAGE_KEY);
+  // 清空 IndexedDB
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+  } catch(e) { /* ignore */ }
+  appData = getDefaultData();
+  pendingPhotos = {};
+  await render();
+  alert('所有数据已重置');
+}
+
+// ===== 事件绑定 =====
+document.getElementById('cropName').addEventListener('change', function() {
+  appData.cropName = this.value || '豇豆';
+  saveData(appData);
+});
+
+document.getElementById('plantingDate').addEventListener('change', function() {
+  appData.plantingDate = this.value;
+  saveData(appData);
+  render();
+});
+
+// ===== 启动 =====
+render();
+
+// 每天自动刷新（如果页面一直开着）
+setInterval(render, 60000);
+</script>
+</body>
+</html>
